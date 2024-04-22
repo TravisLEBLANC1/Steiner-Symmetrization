@@ -45,6 +45,8 @@ class Vector():
     def dist(v1, v2):
         return math.sqrt((v2.y - v1.y)**2 + (v2.x - v1.x)**2)
 
+
+
 def isBetween(x, y, p3:Vector, p4:Vector):
     # get max and min x
     if p3.x <= p4.x:
@@ -87,14 +89,14 @@ def instersection(p1:Vector, p2:Vector, p3:Vector, p4:Vector):
     # print(f"intersection ({x_inter}, {y_inter}) outside " + p3.__str__() + "  " + p4.__str__())
     return None
 
-class Polygone():
+class Polygon():
     def __init__(self, lst_points) -> None:
         self.lst = []
         for i in range (len(lst_points)):
             self.lst.append(Vector(lst_points[i][0], lst_points[i][1]))
     
     def from_vectors(lst_vectors):
-        p = Polygone([])
+        p = Polygon([])
         p.lst = lst_vectors
         return p
 
@@ -107,9 +109,14 @@ class Polygone():
             lst.append((self.lst[i].x, self.lst[i].y))
         return lst
 
+
+"""
+Store a Polygon and allow to symetrize it through a hyperplan (1-dimensionnal) with the symmetrization method
+
+"""
 class Steiner_Symetrisation():
     def __init__(self, lst_points, base_norme = 0.5) -> None:
-        self.poly = Polygone(lst_points)
+        self.poly = Polygon(lst_points)
         self.base_norme = base_norme
 
         self.max_x = 50
@@ -117,13 +124,16 @@ class Steiner_Symetrisation():
         self.max_y = 50
         self.min_y = -50
 
+    """ return the list of points of the curent polygon"""
     def get_points(self):
         return self.poly.get_points()
 
-    def inside_plot(self, vector):
+    """ return true if the vectore is inside the plot (the initial max and min values)"""
+    def __inside_plot(self, vector):
         return self.min_x <= vector.x <= self.max_x and self.min_y <= vector.y <= self.max_x
 
-    def get_inside_volume(self, u):
+    """return the 1-dimensionnal volume of the section through u"""
+    def __get_inside_volume(self, u):
         direct = u.copy().add(self.vector)
         lst_inter = []
         
@@ -134,7 +144,7 @@ class Steiner_Symetrisation():
                 lst_inter.append(tmp)
         if len(lst_inter) > 2:
             print("more than 2... ", len(lst_inter))
-            return 20
+            return -1
         if(len(lst_inter) == 1):
             print("1 seul...")
         if len(lst_inter) < 2:
@@ -142,7 +152,8 @@ class Steiner_Symetrisation():
         # if len(lst_inter) == 2
         return lst_inter[0].dist(lst_inter[1])
 
-    def add_end_points(self, u:Vector, volume):
+    """ add the end points above an under the vector, at volume/2 distance, and shift by u"""
+    def __add_end_points(self, u:Vector, volume):
         # print("volume = ", volume)
         tmp1 = self.vector.copy()
         tmp1.normalize(volume/2)
@@ -166,10 +177,10 @@ class Steiner_Symetrisation():
         self.new_poly_pos = []
         self.new_poly_neg = []
         u = self.perp.copy()
-        while self.inside_plot(u):
-            volume = self.get_inside_volume(u)
+        while self.__inside_plot(u):
+            volume = self.__get_inside_volume(u)
             if volume > EPSILON:
-                self.add_end_points(u, volume)
+                self.__add_end_points(u, volume)
             u.add(self.perp)
 
         self.new_poly_neg.reverse()
@@ -183,7 +194,7 @@ class Steiner_Symetrisation():
         
         u = self.perp.copy()
         u.sub(self.perp)
-        while self.inside_plot(u):
+        while self.__inside_plot(u):
             volume = self.get_inside_volume(u)
             if volume > EPSILON:
                 self.add_end_points(u, volume)
@@ -191,8 +202,8 @@ class Steiner_Symetrisation():
 
         tmp.extend(self.new_poly_neg)
         self.new_poly_pos.reverse()
-        tmp.extend(self.new_poly_pos)
+        tmp.extend(self.new_poly_pos)  # we then add all the points found to one polygon
 
-        self.poly = Polygone.from_vectors(tmp)
+        self.poly = Polygon.from_vectors(tmp)
         
 
