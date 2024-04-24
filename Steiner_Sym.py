@@ -108,7 +108,28 @@ class Polygon():
         for i in range(len(self.lst)):
             lst.append((self.lst[i].x, self.lst[i].y))
         return lst
+    
+    def get_perimeter(self):
+        p = 0
+        for i in range(len(self.lst)):
+            p += self.lst[i].dist(self.lst[(i+1)%len(self.lst)])
+        return p
 
+    def get_area_convexe(self):
+        if len(self.lst) == 0: return 0
+        area = 0
+        p0 = self.lst[0]
+
+        for i in range(1, len(self.lst)):
+            p1 = self.lst[i]
+            p2 = self.lst[(i+1)%len(self.lst)]
+            a = p0.dist(p1)
+            b = p0.dist(p2)
+            c = p1.dist(p2)
+            s = (a+b+c)/2
+            area += math.sqrt(abs(s*(s-a)*(s-b)*(s-c)))
+
+        return area
 
 """
 Store a Polygon and allow to symetrize it through a hyperplan (1-dimensionnal) with the symmetrization method
@@ -127,6 +148,12 @@ class Steiner_Symetrisation():
     """ return the list of points of the curent polygon"""
     def get_points(self):
         return self.poly.get_points()
+
+    def get_perimeter(self):
+        return self.poly.get_perimeter()
+
+    def get_volume(self):
+        return self.poly.get_area_convexe()
 
     """ return true if the vectore is inside the plot (the initial max and min values)"""
     def __inside_plot(self, vector):
@@ -195,9 +222,9 @@ class Steiner_Symetrisation():
         u = self.perp.copy()
         u.sub(self.perp)
         while self.__inside_plot(u):
-            volume = self.get_inside_volume(u)
+            volume = self.__get_inside_volume(u)
             if volume > EPSILON:
-                self.add_end_points(u, volume)
+                self.__add_end_points(u, volume)
             u.sub(self.perp)
 
         tmp.extend(self.new_poly_neg)
