@@ -120,9 +120,9 @@ class Polygon():
         area = 0
         p0 = self.lst[0]
 
-        for i in range(1, len(self.lst)):
+        for i in range(1, len(self.lst)-1):
             p1 = self.lst[i]
-            p2 = self.lst[(i+1)%len(self.lst)]
+            p2 = self.lst[(i+1)]
             a = p0.dist(p1)
             b = p0.dist(p2)
             c = p1.dist(p2)
@@ -195,7 +195,7 @@ class Steiner_Symetrisation():
         self.new_poly_neg.append(tmp2)
 
     """ apply a symmetrization througt the perpendicular of "vector" """
-    def symmetrization(self, x, y):
+    def symmetrization_approximated(self, x, y):
         self.vector = Vector(x, y)
         self.vector.normalize()
         self.perp = self.vector.get_perp().normalize(self.base_norme)
@@ -232,5 +232,8 @@ class Steiner_Symetrisation():
         tmp.extend(self.new_poly_pos)  # we then add all the points found to one polygon
 
         self.poly = Polygon.from_vectors(tmp)
-        
+    
 
+    def symmetrization_correct(self, x, y):
+        # TODO
+        self.poly = Polygon([])
