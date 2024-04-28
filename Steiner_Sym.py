@@ -1,6 +1,10 @@
 import math
+from functools import cmp_to_key
 
 EPSILON = 0.000001
+def print_perso_tmp(lst):
+    for i in range(len(lst)):
+        print(lst[i][0], lst[i][1])
 
 class Vector():
     def __init__(self, x, y) -> None:
@@ -32,20 +36,31 @@ class Vector():
         self.y = -self.y
         return self
 
-    def add(self, v):
-        self.x += v.x
-        self.y += v.y
+    def add(self, v, coef=1):
+        self.x += coef*v.x
+        self.y += coef*v.y
         return self
 
-    def sub(self, v):
-        self.x -= v.x
-        self.y -= v.y
+    def sub(self, v, coef=1):
+        self.x -= coef*v.x
+        self.y -= coef*v.y
         return self
 
     def dist(v1, v2):
         return math.sqrt((v2.y - v1.y)**2 + (v2.x - v1.x)**2)
 
+    def norm(self):
+        return math.sqrt(self.y**2 + self.x**2)
 
+    def prod_scalaire(v1, v2):
+        return v1.x*v2.x + v1.y*v2.y
+
+    def projection(self, proj):
+        scalaire = self.prod_scalaire(proj)
+        norme = proj.norm()
+        self.x = proj.x*scalaire/norme
+        self.y = proj.y*scalaire/norme
+        return self
 
 def isBetween(x, y, p3:Vector, p4:Vector):
     # get max and min x
@@ -80,10 +95,9 @@ def instersection(p1:Vector, p2:Vector, p3:Vector, p4:Vector):
 
     x_inter = (b2 - b1)/(a1 - a2)
     y_inter = a1*x_inter + b1 
-    # if y_inter  - a2*x_inter + b2 > 0.00001:
-    #     print("oh no...")
     
     if isBetween(x_inter, y_inter, p3, p4):
+        # print(f"intersection ({x_inter}, {y_inter}) inside " + p3.__str__() + "  " + p4.__str__())
         return Vector(x_inter, y_inter)
 
     # print(f"intersection ({x_inter}, {y_inter}) outside " + p3.__str__() + "  " + p4.__str__())
@@ -102,6 +116,9 @@ class Polygon():
 
     def add(self, vector:Vector):
         self.lst.append(vector)
+
+    def insert(self, index, vector):
+        self.lst.insert(index, vector)
 
     def get_points(self):
         lst = []
@@ -159,6 +176,7 @@ class Steiner_Symetrisation():
     def __inside_plot(self, vector):
         return self.min_x <= vector.x <= self.max_x and self.min_y <= vector.y <= self.max_x
 
+# approximate version
     """return the 1-dimensionnal volume of the section through u"""
     def __get_inside_volume(self, u):
         direct = u.copy().add(self.vector)
@@ -233,7 +251,50 @@ class Steiner_Symetrisation():
 
         self.poly = Polygon.from_vectors(tmp)
     
+# correct version
+
+    def get_intersection(self, index):
+        direct = self.poly.lst[index].copy().add(self.vector)
+        for i in range(len(self.poly.lst)):
+            if i == index or (i+1)%len(self.poly.lst) == index: continue
+            tmp = instersection(self.poly.lst[index], direct, self.poly.lst[i], self.poly.lst[(i+1)%len(self.poly.lst)])
+
+            if tmp is None: continue
+            print("foudn between ", i, i+1)
+            return tmp, i+1
+        return None, None
 
     def symmetrization_correct(self, x, y):
         # TODO
-        self.poly = Polygon([])
+        to_insert = [] # list of the vertises to insert after
+        self.new_poly = Polygon([]) 
+
+        self.vector = Vector(x, y).normalize()
+        self.perp = self.vector.get_perp()
+
+        for i in range(len(self.poly.lst)):
+            v = self.poly.lst[i]
+            inter, index = self.get_intersection(i)
+            projection = v.copy().projection(self.perp)
+            if inter is None:
+                self.new_poly.add(projection)
+                print("not found for ", v, " -> ", projection)
+            else:
+                dist = inter.dist(v)
+                tmp_pos = projection.copy().add(self.vector, coef=dist/2)
+                tmp_neg = projection.sub(self.vector, coef=dist/2)
+                if v.prod_scalaire(self.vector) > 0:
+                    to_insert.append((tmp_neg, index, inter.dist(self.poly.lst[index - 1])))
+                    self.new_poly.add(tmp_pos)
+                    print("found for ", v, " -> ", tmp_neg, tmp_pos)
+                else:
+                    to_insert.append((tmp_pos, index, inter.dist(self.poly.lst[index - 1])))
+                    self.new_poly.add(tmp_neg)
+                    print("found for ", v, " -> ",  tmp_pos,tmp_neg)
+        print_perso_tmp(to_insert)
+        to_insert.sort(key=cmp_to_key(lambda x, y: y[1]-x[1] if x[1] != y[1] else y[2] - x[2]))
+        print_perso_tmp(to_insert)
+        for (v, i, _) in to_insert:
+            self.new_poly.insert(i, v)
+        
+        self.poly = self.new_poly
