@@ -1,6 +1,15 @@
 import math
+from functools import cmp_to_key
 
 EPSILON = 0.000001
+def print_perso_tmp(lst):
+    for i in range(len(lst)):
+        print(lst[i][0], lst[i][1])
+
+def print_poly(poly):
+    for v in poly.lst:
+        print(v, end=" ")
+    print()
 
 class Vector():
     def __init__(self, x, y) -> None:
@@ -9,6 +18,9 @@ class Vector():
 
     def __str__(self) -> str:
         return f"({round(self.x, 1)}, {round(self.y, 1)})"
+
+    def __eq__(self, value: object) -> bool:
+        return abs(value.x - self.x) <= EPSILON and abs(value.y - self.y) <= EPSILON
 
     def copy(self):
         return Vector(self.x, self.y)
@@ -32,20 +44,31 @@ class Vector():
         self.y = -self.y
         return self
 
-    def add(self, v):
-        self.x += v.x
-        self.y += v.y
+    def add(self, v, coef=1):
+        self.x += coef*v.x
+        self.y += coef*v.y
         return self
 
-    def sub(self, v):
-        self.x -= v.x
-        self.y -= v.y
+    def sub(self, v, coef=1):
+        self.x -= coef*v.x
+        self.y -= coef*v.y
         return self
 
     def dist(v1, v2):
         return math.sqrt((v2.y - v1.y)**2 + (v2.x - v1.x)**2)
 
+    def norm(self):
+        return math.sqrt(self.y**2 + self.x**2)
 
+    def prod_scalaire(v1, v2):
+        return v1.x*v2.x + v1.y*v2.y
+
+    def projection(self, proj):
+        scalaire = self.prod_scalaire(proj)
+        norme = proj.norm()
+        self.x = proj.x*scalaire/norme
+        self.y = proj.y*scalaire/norme
+        return self
 
 def isBetween(x, y, p3:Vector, p4:Vector):
     # get max and min x
@@ -80,10 +103,9 @@ def instersection(p1:Vector, p2:Vector, p3:Vector, p4:Vector):
 
     x_inter = (b2 - b1)/(a1 - a2)
     y_inter = a1*x_inter + b1 
-    # if y_inter  - a2*x_inter + b2 > 0.00001:
-    #     print("oh no...")
     
     if isBetween(x_inter, y_inter, p3, p4):
+        # print(f"intersection ({x_inter}, {y_inter}) inside " + p3.__str__() + "  " + p4.__str__())
         return Vector(x_inter, y_inter)
 
     # print(f"intersection ({x_inter}, {y_inter}) outside " + p3.__str__() + "  " + p4.__str__())
@@ -95,6 +117,9 @@ class Polygon():
         for i in range (len(lst_points)):
             self.lst.append(Vector(lst_points[i][0], lst_points[i][1]))
     
+    def __str__(self) -> str:
+        return print_poly(self)
+
     def from_vectors(lst_vectors):
         p = Polygon([])
         p.lst = lst_vectors
@@ -102,6 +127,42 @@ class Polygon():
 
     def add(self, vector:Vector):
         self.lst.append(vector)
+
+    def insert(self, index, vector):
+        self.lst.insert(index, vector)
+
+    def __lower_x_point(self):
+        if len(self.lst) == 0:
+            raise ValueError("impossible to make a min of an empty list")
+        index_min = 0
+        for i in range(1, len(self.lst)):
+            if self.lst[index_min].x > self.lst[i].x:
+                index_min = i
+        return self.lst[index_min]
+
+    """ return True if p3 is on the left of the segment [p1, p2]"""
+    def is_on_left(p1, p2, p3):
+        return (p3.y - p1.y)*(p2.x - p1.x) - (p2.y - p1.y)*(p3.x - p1.x) < 0
+
+    """ change the list of points to be the convexHull of the points"""
+    def convexHull(self):
+        convex = []
+        pointHull = self.__lower_x_point()
+        i = 0
+        while True:
+            convex.append(pointHull)
+            endPoint = self.lst[0]
+            for j in range(1, len(self.lst)):
+                if (endPoint == pointHull) or (Polygon.is_on_left(self.lst[j], convex[i], endPoint)):
+                    endPoint = self.lst[j]
+
+            i = i+1
+            pointHull = endPoint
+
+            if endPoint == convex[0]:
+                break
+        
+        self.lst = convex
 
     def get_points(self):
         lst = []
@@ -131,6 +192,7 @@ class Polygon():
 
         return area
 
+
 """
 Store a Polygon and allow to symetrize it through a hyperplan (1-dimensionnal) with the symmetrization method
 
@@ -159,6 +221,7 @@ class Steiner_Symetrisation():
     def __inside_plot(self, vector):
         return self.min_x <= vector.x <= self.max_x and self.min_y <= vector.y <= self.max_x
 
+# approximate version
     """return the 1-dimensionnal volume of the section through u"""
     def __get_inside_volume(self, u):
         direct = u.copy().add(self.vector)
@@ -233,7 +296,36 @@ class Steiner_Symetrisation():
 
         self.poly = Polygon.from_vectors(tmp)
     
+# correct version
+
+    def get_intersection(self, index):
+        direct = self.poly.lst[index].copy().add(self.vector)
+        for i in range(len(self.poly.lst)):
+            if i == index or (i+1)%len(self.poly.lst) == index: continue
+            tmp = instersection(self.poly.lst[index], direct, self.poly.lst[i], self.poly.lst[(i+1)%len(self.poly.lst)])
+
+            if tmp is None: continue
+            return tmp, i+1
+        return None, None
 
     def symmetrization_correct(self, x, y):
-        # TODO
-        self.poly = Polygon([])
+        self.new_poly = Polygon([]) 
+
+        self.vector = Vector(x, y).normalize()
+        self.perp = self.vector.get_perp()
+
+        for i in range(len(self.poly.lst)):
+            v = self.poly.lst[i]
+            inter, index = self.get_intersection(i)
+            projection = v.copy().projection(self.perp)
+            if inter is None:
+                self.new_poly.add(projection)
+            else:
+                dist = inter.dist(v)
+                tmp_pos = projection.copy().add(self.vector, coef=dist/2)
+                tmp_neg = projection.sub(self.vector, coef=dist/2)
+                self.new_poly.add(tmp_neg)
+                self.new_poly.add(tmp_pos)
+
+        self.new_poly.convexHull()
+        self.poly = self.new_poly
