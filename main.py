@@ -7,13 +7,15 @@ import math
 
 
 INIT_POINTS = [(-49, -5),
+            (0,0),
           (-5, 45),
+          (5, 15),
           (21, 15)]
 
-NB_SYMETRISATION = 2       # number of symetrisation before stop, -1 for infinity
+NB_SYMETRISATION = -1       # number of symetrisation before stop, -1 for infinity
 PRECISION = 0.1              # width between points
 INTERVAL = 5000              # ms bewtween symetrisation
-RANDOM_DIRECTIONS = False   # if True the directions will be random
+RANDOM_DIRECTIONS = True   # if True the directions will be random
 DIRECTIONS = [(-0.55, 0.8),(0.65, 0.39),(-0.5, -0.32)]   # else we use thoses directions
 APPROXIMATE = False  # if True the algorithme will approximate the symetrization
 # else the values will be more exact but a lot of points will be created
@@ -28,6 +30,7 @@ def print_perso(lst):
 # global variable to use inside animate
 fig, ax = plt.subplots(1, 1)
 steiner = Steiner_Symetrisation(INIT_POINTS, base_norme=PRECISION)
+steiner.poly.convexHull()
 index_direction = 0
 radius = math.sqrt(steiner.get_volume()/math.pi)
 circle = plt.Circle((0, 0), radius, color='g', fill=False)
@@ -56,28 +59,25 @@ def animate(i):
             steiner.symmetrization_approximated(x_dir, y_dir)
         else:
             steiner.symmetrization_correct(x_dir, y_dir)
-    a = -x_dir/y_dir
-    ax.plot([-50, 50], [-50*a, +50*a])
-    ax.plot([0, x_dir*3], [0, y_dir*3])
+        a = -x_dir/y_dir
+        ax.plot([-50, 50], [-50*a, +50*a])
     ax.text(28, 55, f"perimeter : {round(steiner.get_perimeter(), 2)}")
     ax.text(-10, 55, f"circle perimeter : {round(2*math.pi*radius,2)}")
     ax.text(-40, 55, f"area : {round(steiner.get_volume(), 2)}")
     
     lst = steiner.get_points()
-    print_perso(lst)
+    ax.text(-10, -45, f"nb_points : {len(lst)}")
     p = Polygon(lst, closed=True, ec='r', fill=False)
     ax.add_patch(circle)
     ax.add_patch(p)
-
-    for i in range(len(lst)):
-        ax.text(lst[i][0], lst[i][1], f"{i}")
     
 
 if __name__ == "__main__":
     ax.set_xlim([-50,50])
     ax.set_ylim([-50,50])
-
+    
     anim = FuncAnimation(fig, animate, frames= 1000 if NB_SYMETRISATION == -1 else NB_SYMETRISATION+1, interval=INTERVAL, repeat=(NB_SYMETRISATION == -1))
+
     plt.show()
     plt.close()
 

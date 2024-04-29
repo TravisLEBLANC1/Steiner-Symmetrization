@@ -6,6 +6,11 @@ def print_perso_tmp(lst):
     for i in range(len(lst)):
         print(lst[i][0], lst[i][1])
 
+def print_poly(poly):
+    for v in poly.lst:
+        print(v, end=" ")
+    print()
+
 class Vector():
     def __init__(self, x, y) -> None:
         self.x = x
@@ -13,6 +18,9 @@ class Vector():
 
     def __str__(self) -> str:
         return f"({round(self.x, 1)}, {round(self.y, 1)})"
+
+    def __eq__(self, value: object) -> bool:
+        return abs(value.x - self.x) <= EPSILON and abs(value.y - self.y) <= EPSILON
 
     def copy(self):
         return Vector(self.x, self.y)
@@ -109,6 +117,9 @@ class Polygon():
         for i in range (len(lst_points)):
             self.lst.append(Vector(lst_points[i][0], lst_points[i][1]))
     
+    def __str__(self) -> str:
+        return print_poly(self)
+
     def from_vectors(lst_vectors):
         p = Polygon([])
         p.lst = lst_vectors
@@ -119,6 +130,39 @@ class Polygon():
 
     def insert(self, index, vector):
         self.lst.insert(index, vector)
+
+    def __lower_x_point(self):
+        if len(self.lst) == 0:
+            raise ValueError("impossible to make a min of an empty list")
+        index_min = 0
+        for i in range(1, len(self.lst)):
+            if self.lst[index_min].x > self.lst[i].x:
+                index_min = i
+        return self.lst[index_min]
+
+    """ return True if p3 is on the left of the segment [p1, p2]"""
+    def is_on_left(p1, p2, p3):
+        return (p3.y - p1.y)*(p2.x - p1.x) - (p2.y - p1.y)*(p3.x - p1.x) < 0
+
+    """ change the list of points to be the convexHull of the points"""
+    def convexHull(self):
+        convex = []
+        pointHull = self.__lower_x_point()
+        i = 0
+        while True:
+            convex.append(pointHull)
+            endPoint = self.lst[0]
+            for j in range(1, len(self.lst)):
+                if (endPoint == pointHull) or (Polygon.is_on_left(self.lst[j], convex[i], endPoint)):
+                    endPoint = self.lst[j]
+
+            i = i+1
+            pointHull = endPoint
+
+            if endPoint == convex[0]:
+                break
+        
+        self.lst = convex
 
     def get_points(self):
         lst = []
@@ -147,6 +191,7 @@ class Polygon():
             area += math.sqrt(abs(s*(s-a)*(s-b)*(s-c)))
 
         return area
+
 
 """
 Store a Polygon and allow to symetrize it through a hyperplan (1-dimensionnal) with the symmetrization method
@@ -260,13 +305,10 @@ class Steiner_Symetrisation():
             tmp = instersection(self.poly.lst[index], direct, self.poly.lst[i], self.poly.lst[(i+1)%len(self.poly.lst)])
 
             if tmp is None: continue
-            print("foudn between ", i, i+1)
             return tmp, i+1
         return None, None
 
     def symmetrization_correct(self, x, y):
-        # TODO
-        to_insert = [] # list of the vertises to insert after
         self.new_poly = Polygon([]) 
 
         self.vector = Vector(x, y).normalize()
@@ -278,23 +320,12 @@ class Steiner_Symetrisation():
             projection = v.copy().projection(self.perp)
             if inter is None:
                 self.new_poly.add(projection)
-                print("not found for ", v, " -> ", projection)
             else:
                 dist = inter.dist(v)
                 tmp_pos = projection.copy().add(self.vector, coef=dist/2)
                 tmp_neg = projection.sub(self.vector, coef=dist/2)
-                if v.prod_scalaire(self.vector) > 0:
-                    to_insert.append((tmp_neg, index, inter.dist(self.poly.lst[index - 1])))
-                    self.new_poly.add(tmp_pos)
-                    print("found for ", v, " -> ", tmp_neg, tmp_pos)
-                else:
-                    to_insert.append((tmp_pos, index, inter.dist(self.poly.lst[index - 1])))
-                    self.new_poly.add(tmp_neg)
-                    print("found for ", v, " -> ",  tmp_pos,tmp_neg)
-        print_perso_tmp(to_insert)
-        to_insert.sort(key=cmp_to_key(lambda x, y: y[1]-x[1] if x[1] != y[1] else y[2] - x[2]))
-        print_perso_tmp(to_insert)
-        for (v, i, _) in to_insert:
-            self.new_poly.insert(i, v)
-        
+                self.new_poly.add(tmp_neg)
+                self.new_poly.add(tmp_pos)
+
+        self.new_poly.convexHull()
         self.poly = self.new_poly
