@@ -1,5 +1,4 @@
 import math
-from functools import cmp_to_key
 
 EPSILON = 0.000001
 def print_perso_tmp(lst):

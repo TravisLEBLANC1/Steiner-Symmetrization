@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-from matplotlib.patches import Polygon
+from matplotlib.patches import Polygon as Pol
 from Steiner_Sym import Steiner_Symetrisation
 import random
 import math
@@ -34,11 +34,12 @@ steiner.poly.convexHull()
 index_direction = 0
 radius = math.sqrt(steiner.get_volume()/math.pi)
 circle = plt.Circle((0, 0), radius, color='g', fill=False)
+nb_points = 0
 
 def animate(i):
     global steiner
     global index_direction
-
+    global nb_points
     
     ax.clear()
     ax.set_xlim([-50,50])
@@ -48,13 +49,12 @@ def animate(i):
     if RANDOM_DIRECTIONS:
         x_dir = random.random()*2 - 1
         y_dir = random.random()*2 - 1
-        print("dir = ", x_dir, y_dir)
     else:
         x_dir, y_dir = DIRECTIONS[index_direction]
         index_direction = (index_direction + 1 )% len(DIRECTIONS)
 
     # symmetrization
-    if i > 0:
+    if i > 0 and nb_points < 4000:
         if APPROXIMATE:
             steiner.symmetrization_approximated(x_dir, y_dir)
         else:
@@ -66,8 +66,9 @@ def animate(i):
     ax.text(-40, 55, f"area : {round(steiner.get_volume(), 2)}")
     
     lst = steiner.get_points()
+    nb_points = len(lst)
     ax.text(-10, -45, f"nb_points : {len(lst)}")
-    p = Polygon(lst, closed=True, ec='r', fill=False)
+    p = Pol(lst, closed=True, ec='r', fill=False)
     ax.add_patch(circle)
     ax.add_patch(p)
     
